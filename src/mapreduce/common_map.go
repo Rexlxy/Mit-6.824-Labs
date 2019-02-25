@@ -1,7 +1,12 @@
 package mapreduce
 
 import (
+	"encoding/json"
+	"fmt"
 	"hash/fnv"
+	"io/ioutil"
+	"log"
+	"os"
 )
 
 func doMap(
@@ -53,6 +58,51 @@ func doMap(
 	//
 	// Your code here (Part I).
 	//
+
+	// read file
+	content, err := ioutil.ReadFile(inFile)
+	if err != nil {
+		log.Fatalf("doMap: %s", err)
+	}
+	// call mapF
+	contentStr := fmt.Sprintf("%s", content)
+	keyValues := mapF(inFile, contentStr)
+
+	// put group keyvalues by filename
+	groupedKVs := make(map[string][]KeyValue)
+
+	// Group kvs by their filename
+	for _, kv := range keyValues {
+		r := ihash(kv.Key)
+		filename := reduceName(jobName, mapTask, r%nReduce)
+		group := groupedKVs[filename]
+		if group == nil {
+			groupedKVs[filename] = []KeyValue{kv}
+		} else {
+			groupedKVs[filename] = append(group, kv)
+		}
+	}
+
+	// write into files group by group
+	for filename, kvs := range groupedKVs {
+		f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		log.Printf("doMap: opened file %s", filename)
+
+		enc := json.NewEncoder(f)
+		// Append json objects
+		for _, kv := range kvs {
+			if err := enc.Encode(&kv); err != nil {
+				log.Fatalln(err)
+			}
+		}
+		if err := f.Close(); err != nil {
+			log.Fatalln(err)
+		}
+	}
+
 }
 
 func ihash(s string) int {
