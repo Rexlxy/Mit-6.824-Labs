@@ -1,5 +1,13 @@
 package mapreduce
 
+import (
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"sort"
+)
+
 func doReduce(
 	jobName string, // the name of the whole MapReduce job
 	reduceTask int, // which reduce task this is
@@ -44,4 +52,65 @@ func doReduce(
 	//
 	// Your code here (Part I).
 	//
+
+	// For each map task, Read data into array
+	allKeyValues := []KeyValue{}
+	for mapTask := 0; mapTask < nMap; mapTask++ {
+		filename := reduceName(jobName, mapTask, reduceTask)
+		f, err := os.Open(filename)
+		if err != nil {
+			fmt.Println("Fail to open file ", filename, err)
+			continue
+		}
+
+		dec := json.NewDecoder(f)
+		for dec.More() {
+			var kv KeyValue
+			err := dec.Decode(&kv)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+			allKeyValues = append(allKeyValues, kv)
+		}
+	}
+
+	// sort by keys
+	sort.Sort(ByKey(allKeyValues))
+
+	reduced := []KeyValue{}
+	// read by keys, collect values
+	// call reduceF && put data into result array
+
+	for i := 0; i < len(allKeyValues); {
+		key := allKeyValues[i].Key
+		values := []string{allKeyValues[i].Value}
+		i++
+		for i < len(allKeyValues) && allKeyValues[i].Key == key {
+			values = append(values, allKeyValues[i].Value)
+			i++
+		}
+
+		// reduced KeyValue
+		kv := KeyValue{key, reduceF(key, values)}
+		reduced = append(reduced, kv)
+	}
+
+	// write into output file
+	f, err := os.OpenFile(outFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+	enc := json.NewEncoder(f)
+	for _, kv := range reduced {
+		enc.Encode(&kv)
+	}
+	f.Close()
 }
+
+type ByKey []KeyValue
+
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
