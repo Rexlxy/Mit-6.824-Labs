@@ -2,8 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"mapreduce"
 	"os"
+	"strconv"
+	"unicode"
 )
 
 //
@@ -15,6 +18,23 @@ import (
 //
 func mapF(filename string, contents string) []mapreduce.KeyValue {
 	// Your code here (Part II).
+	kvs := []mapreduce.KeyValue{}
+	runeList := []rune(contents)
+	i := 0
+	for i < len(runeList) {
+		word := []rune{}
+		for i < len(runeList) && unicode.IsLetter(runeList[i]) {
+			word = append(word, runeList[i])
+			i++
+		}
+
+		if len(word) != 0 {
+			kvs = append(kvs, mapreduce.KeyValue{string(word), "1"})
+		}
+		i++
+	}
+	log.Println("kvs length", len(kvs))
+	return kvs
 }
 
 //
@@ -24,6 +44,15 @@ func mapF(filename string, contents string) []mapreduce.KeyValue {
 //
 func reduceF(key string, values []string) string {
 	// Your code here (Part II).
+	sum := 0
+	for _, v := range values {
+		i, err := strconv.ParseInt(v, 10, 32)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		sum += int(i)
+	}
+	return strconv.Itoa(sum)
 }
 
 // Can be run in 3 ways:
