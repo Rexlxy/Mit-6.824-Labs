@@ -79,9 +79,9 @@ func doReduce(
 	sort.Sort(ByKey(allKeyValues))
 
 	reduced := []KeyValue{}
+
 	// read by keys, collect values
 	// call reduceF && put data into result array
-
 	for i := 0; i < len(allKeyValues); {
 		key := allKeyValues[i].Key
 		values := []string{allKeyValues[i].Value}
