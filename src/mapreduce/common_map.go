@@ -89,7 +89,7 @@ func doMap(
 		if err != nil {
 			log.Fatalln(err)
 		}
-		log.Printf("doMap: opened file %s", filename)
+		// log.Printf("doMap: opened file %s", filename)
 
 		enc := json.NewEncoder(f)
 		// Append json objects
