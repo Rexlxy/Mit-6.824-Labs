@@ -35,27 +35,39 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	//
 
 	var wg sync.WaitGroup
+	taskChan := make(chan int, ntasks)
 	for i := 0; i < ntasks; i++ {
-		// get address from channel
-		worker := <-registerChan
-
-		// send rpc
 		wg.Add(1)
-		go func(taskIndex int) {
-			var args DoTaskArgs
-			switch phase {
-			case mapPhase:
-				args = DoTaskArgs{jobName, mapFiles[taskIndex], phase, taskIndex, n_other}
-			case reducePhase:
-				args = DoTaskArgs{jobName, "", phase, taskIndex, n_other}
-			}
-
-			call(worker, "Worker.DoTask", args, nil)
-			wg.Done()
-			registerChan <- worker
-		}(i)
-
+		taskChan <- i
 	}
+
+	go func() {
+		for {
+			// get a task
+			i := <-taskChan
+			// get address from channel
+			worker := <-registerChan
+
+			// send rpc
+			go func(taskIndex int) {
+				var args DoTaskArgs
+				switch phase {
+				case mapPhase:
+					args = DoTaskArgs{jobName, mapFiles[taskIndex], phase, taskIndex, n_other}
+				case reducePhase:
+					args = DoTaskArgs{jobName, "", phase, taskIndex, n_other}
+				}
+
+				if call(worker, "Worker.DoTask", args, nil) {
+					wg.Done()
+				} else {
+					taskChan <- taskIndex
+				}
+				registerChan <- worker
+			}(i)
+		}
+	}()
+
 	wg.Wait()
 	fmt.Printf("Schedule: %v done\n", phase)
 }
