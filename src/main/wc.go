@@ -33,7 +33,6 @@ func mapF(filename string, contents string) []mapreduce.KeyValue {
 		}
 		i++
 	}
-	log.Println("kvs length", len(kvs))
 	return kvs
 }
 
